@@ -113,12 +113,15 @@ fn wasm_gcd(mut a: i32, mut b: i32) -> i32 {
             .unwrap_or_else(|| "Unknown".to_string())
     );
 
-    let code_blob = if code_blob_size_mb > 4.0 {
-        let mut encoder = CompressCodec::from(CompressAlgorithm::Zstd);
-        encoder.compress_all(&code_blob)?
-    } else {
-        code_blob
-    };
+    let mut encoder = CompressCodec::from(CompressAlgorithm::Zstd);
+    let code_blob = encoder.compress_all(&code_blob)?;
+
+    // let code_blob = if code_blob_size_mb > 4.0 {
+    //     let mut encoder = CompressCodec::from(CompressAlgorithm::Zstd);
+    //     encoder.compress_all(&code_blob)?
+    // } else {
+    //     code_blob
+    // };
 
     log::info!(
         "Compressed MIME type: {}",
@@ -127,27 +130,33 @@ fn wasm_gcd(mut a: i32, mut b: i32) -> i32 {
             .unwrap_or_else(|| "Unknown".to_string())
     );
 
-    let blocking_operator = DataOperator::instance().operator().blocking();
-    let wasm_module_path = format!("test_dir/{}.wasm", Uuid::new_v4().to_string());
-    blocking_operator
-        .write_with(&wasm_module_path, code_blob)
-        .content_type("application/wasm")
-        .call()?;
+    let code_blob_size_mb = (code_blob.len() as f64) / (1024.0 * 1024.0);
+    log::info!("Size of code_blob: {:.2} MB", code_blob_size_mb);
+    
+    // let blocking_operator = DataOperator::instance().operator().blocking();
+    // let wasm_module_path = format!("test_dir/{}.wasm", Uuid::new_v4().to_string());
+    // blocking_operator
+    //     .write_with(&wasm_module_path, code_blob)
+    //     .content_type("application/wasm")
+    //     .call()?;
 
-    log::info!("WASM blob compression: {} - Done!", wasm_module_path);
-    log::info!(
-        "WASM blob stat: {:?}",
-        blocking_operator.stat(&wasm_module_path)?
-    );
-    log::info!(
-        "WASM blob stat: {:?}",
-        blocking_operator.stat_with(&wasm_module_path).call()?
-    );
+    // log::info!("WASM blob compression: {} - Done!", wasm_module_path);
+    // log::info!(
+    //     "WASM blob stat: {:?}",
+    //     blocking_operator.stat(&wasm_module_path)?
+    // );
+    // log::info!(
+    //     "WASM blob stat: {:?}",
+    //     blocking_operator.stat_with(&wasm_module_path).call()?
+    // );
 
     let command = format!(
-        r#"CREATE FUNCTION wasm_gcd (INT, INT) RETURNS BIGINT LANGUAGE wasm HANDLER = 'wasm_gcd(int4,int4)->int4' AS $${wasm_module_path}$$"#
+        r#"CREATE FUNCTION wasm_gcd (INT, INT) RETURNS BIGINT LANGUAGE wasm HANDLER = 'wasm_gcd(int4,int4)->int4' AS $${:#?}$$"#,
+        &code_blob
     );
-    log::info!("Create UDF DDL command: {}", command);
+    // log::info!("Create UDF DDL command: {}", command);
+    log::info!("Create UDF DDL command:");
+    
     fixture.execute_command(&command).await?;
     log::info!("Create UDF DDL - Done!");
 

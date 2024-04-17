@@ -15,6 +15,7 @@
 use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::borrow::Cow;
 
 use arrow_array::RecordBatch;
 use arrow_schema::Schema;
@@ -70,67 +71,61 @@ impl ScriptRuntime {
     }
 
     fn create_wasm_runtime(code: Option<&str>) -> Result<Self, ErrorCode> {
-        let wasm_module_path = code.ok_or(ErrorCode::UDFDataError(format!(
+        let code_blob = code.ok_or(ErrorCode::UDFDataError(format!(
             "WASM module code path not provided"
         )))?;
 
-        let blocking_operator = DataOperator::instance().operator().blocking();
+        // let blocking_operator = DataOperator::instance().operator().blocking();
 
-        let file_metadata = blocking_operator.stat(wasm_module_path).map_err(|err| {
-            ErrorCode::UDFDataError(format!("Failed to read WASM module metadata: {:#?}", err))
-        })?;
+        // let file_metadata = blocking_operator.stat(wasm_module_path).map_err(|err| {
+        //     ErrorCode::UDFDataError(format!("Failed to read WASM module metadata: {:#?}", err))
+        // })?;
 
-        log::info!(
-            "WASM module path: {:#?}, file metadata: {:?}",
-            wasm_module_path,
-            file_metadata
-        );
+        // log::info!(
+        //     "WASM module path: {:#?}, file metadata: {:?}",
+        //     wasm_module_path,
+        //     file_metadata
+        // );
 
-        let code_blob = blocking_operator.read(wasm_module_path).map_err(|err| {
+        // let code_blob = blocking_operator.read(wasm_module_path).map_err(|err| {
+        //     ErrorCode::UDFDataError(format!(
+        //         "Failed to read WASM module {:#?}: {:#?}",
+        //         wasm_module_path.to_string(),
+        //         err
+        //     ))
+        // })?;
+
+        let detected_mime_type = infer::get(code_blob.as_bytes()).ok_or_else(|| {
             ErrorCode::UDFDataError(format!(
-                "Failed to read WASM module {:#?}: {:#?}",
-                wasm_module_path.to_string(),
-                err
+                "Failed to infer MIME type for WASM module",
             ))
         })?;
 
-        let detected_mime_type = infer::get(&code_blob).ok_or_else(|| {
-            ErrorCode::UDFDataError(format!(
-                "Failed to infer MIME type for WASM module: {:#?}",
-                wasm_module_path
-            ))
-        })?;
-
         log::info!(
-            "WASM module {:#?} detected MIME type {:#?}",
-            file_metadata,
+            "WASM module detected MIME type {:#?}",
             detected_mime_type
         );
 
-        let code_blob = match detected_mime_type.mime_type() {
-            "application/wasm" => code_blob,
+        let code_blob: Cow<[u8]> = match detected_mime_type.mime_type() {
+            "application/wasm" => Cow::Borrowed(code_blob.as_bytes()),
             "application/zstd" => {
                 let mut decoder = DecompressDecoder::new(CompressAlgorithm::Zstd);
-                let decompressed_blob = decoder.decompress_all(&code_blob).map_err(|err| {
-                    ErrorCode::UDFDataError(format!(
-                        "Failed to decompress WASM module {}: {}",
-                        wasm_module_path, err
-                    ))
-                })?;
-                decompressed_blob
+                let decompressed_bytes = decoder
+                    .decompress_all(code_blob.as_bytes())
+                    .map_err(|err| ErrorCode::UDFDataError(format!("Failed to decompress WASM module: {}", err)))?;
+
+                Cow::Owned(decompressed_bytes)
             }
             _ => {
                 return Err(ErrorCode::UDFDataError(format!(
-                    "Unsupported MIME type for WASM module: {:#?}",
-                    wasm_module_path
+                    "Unsupported MIME type for WASM module",                    
                 )));
             }
         };
 
         let runtime = arrow_udf_wasm::Runtime::new(&code_blob).map_err(|err| {
             ErrorCode::UDFDataError(format!(
-                "Failed to create WASM runtime for module '{}': {}",
-                wasm_module_path, err
+                "Failed to create WASM runtime for module: {}", err
             ))
         })?;
 
