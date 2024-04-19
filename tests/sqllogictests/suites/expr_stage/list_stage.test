@@ -1,0 +1,13 @@
+query 
+select name, size, creator from list_stage(location => '@data/udf/wasm/test10-udf-wasm-gcd/') order by name
+----
+udf/wasm/test10-udf-wasm-gcd/test10-udf-wasm-gcd.tar.gz	8683	NULL
+udf/wasm/test10-udf-wasm-gcd/test10_udf_wasm_gcd.wasm	2918930	NULL
+
+statement ok
+CREATE FUNCTION wasm_gcd (INT, INT) RETURNS BIGINT LANGUAGE wasm HANDLER = 'wasm_gcd(int4,int4)->int4' AS $$@data/udf/wasm/test10-udf-wasm-gcd/test10_udf_wasm_gcd.wasm$$
+
+query F
+select number, wasm_gcd(number * 3, number * 6) from numbers(5) where number > 0 order by 1;
+----
+6.0

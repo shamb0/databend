@@ -74,6 +74,8 @@ impl ScriptRuntime {
             "WASM module code path not provided"
         )))?;
 
+        log::info!("WASM module path: {:#?}", wasm_module_path,);
+
         let blocking_operator = DataOperator::instance().operator().blocking();
 
         let file_metadata = blocking_operator.stat(wasm_module_path).map_err(|err| {

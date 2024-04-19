@@ -35,6 +35,7 @@ pub struct CreateUserUDFScript {
 
 impl CreateUserUDFScript {
     pub fn try_create(ctx: Arc<QueryContext>, plan: CreateUDFPlan) -> Result<Self> {
+        log::info!("Shamb0, CreateUserUDFScript::try_create()!!!",);
         Ok(CreateUserUDFScript { ctx, plan })
     }
 }

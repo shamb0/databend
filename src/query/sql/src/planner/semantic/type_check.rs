@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -21,6 +22,7 @@ use databend_common_ast::ast::BinaryOperator;
 use databend_common_ast::ast::ColumnID;
 use databend_common_ast::ast::ColumnRef;
 use databend_common_ast::ast::Expr;
+use databend_common_ast::ast::FileLocation;
 use databend_common_ast::ast::FunctionCall as ASTFunctionCall;
 use databend_common_ast::ast::Identifier;
 use databend_common_ast::ast::IntervalKind as ASTIntervalKind;
@@ -34,6 +36,7 @@ use databend_common_ast::ast::SubqueryModifier;
 use databend_common_ast::ast::TrimWhere;
 use databend_common_ast::ast::TypeName;
 use databend_common_ast::ast::UnaryOperator;
+use databend_common_ast::ast::UriLocation;
 use databend_common_ast::ast::Window;
 use databend_common_ast::ast::WindowFrame;
 use databend_common_ast::ast::WindowFrameBound;
@@ -84,6 +87,7 @@ use databend_common_meta_app::principal::LambdaUDF;
 use databend_common_meta_app::principal::UDFDefinition;
 use databend_common_meta_app::principal::UDFScript;
 use databend_common_meta_app::principal::UDFServer;
+use databend_common_storages_stage::StageTable;
 use databend_common_users::UserApiProvider;
 use derive_visitor::Drive;
 use derive_visitor::Visitor;
@@ -96,6 +100,7 @@ use simsearch::SimSearch;
 use super::name_resolution::NameResolutionContext;
 use super::normalize_identifier;
 use crate::binder::bind_values;
+use crate::binder::resolve_file_location;
 use crate::binder::wrap_cast;
 use crate::binder::Binder;
 use crate::binder::CteInfo;
@@ -3221,6 +3226,8 @@ impl<'a> TypeChecker<'a> {
             return Ok(None);
         };
 
+        log::info!("Shamb0, resolve_udf()!!!",);
+
         let name = udf.name;
 
         match udf.definition {
@@ -3323,6 +3330,90 @@ impl<'a> TypeChecker<'a> {
             }
         }
 
+        log::info!(
+            "Shamb0, Shamb0 resolve_udf_script(), {:#?}!!!",
+            &udf_definition
+        );
+
+        let const_udf_type = if ["wasm"].contains(&udf_definition.language.to_lowercase().as_str())
+        {
+            let file_location =
+                if let Some(location) = udf_definition.code.clone().strip_prefix('@') {
+                    FileLocation::Stage(location.to_string())
+                } else {
+                    let uri = UriLocation::from_uri(
+                        udf_definition.code.clone(),
+                        "".to_string(),
+                        BTreeMap::default(),
+                    )?;
+                    FileLocation::Uri(uri)
+                };
+
+            let (stage_info, wasm_module_path) =
+                resolve_file_location(self.ctx.as_ref(), &file_location)
+                    .await
+                    .map_err(|err| {
+                        log::error!(
+                            "Failed to resolve wasm code location {:#?} err {:#?}",
+                            &udf_definition.code,
+                            err
+                        );
+                        ErrorCode::SemanticError(format!(
+                            "Failed to resolve wasm code location {:#?} err {:#?}",
+                            &udf_definition.code, err
+                        ))
+                    })?;
+
+            log::info!(
+                "Shamb0, Success ressolve wasm code location {:#?} err {:#?}",
+                &stage_info,
+                wasm_module_path
+            );
+
+            let op = StageTable::get_op(&stage_info).map_err(|err| {
+                log::error!("Failed to get StageTable operator err {}", err);
+                ErrorCode::SemanticError(format!("Failed to get StageTable operator err {}", err))
+            })?;
+
+            let code_blob = op.read(&wasm_module_path).await.map_err(|err| {
+                log::error!(
+                    "Failed to read wasm module {} err {}",
+                    wasm_module_path.to_string(),
+                    err
+                );
+                ErrorCode::SemanticError(format!(
+                    "Failed to read WASM module {:#?}: {:#?}",
+                    wasm_module_path.to_string(),
+                    err
+                ))
+            })?;
+
+            let code_blob = String::from_utf8(code_blob).map_err(|err| {
+                log::error!(
+                    "Failed to string encode wasm module {} err {}",
+                    wasm_module_path.to_string(),
+                    err
+                );
+                ErrorCode::SemanticError(format!(
+                    "Failed to string encode wasm module {:#?}: {:#?}",
+                    wasm_module_path.to_string(),
+                    err
+                ))
+            })?;
+
+            UDFType::Script((
+                udf_definition.language,
+                udf_definition.runtime_version,
+                code_blob,
+            ))
+        } else {
+            UDFType::Script((
+                udf_definition.language,
+                udf_definition.runtime_version,
+                udf_definition.code,
+            ))
+        };
+
         let arg_names = arguments.iter().map(|arg| format!("{}", arg)).join(", ");
         let display_name = format!("{}({})", udf_definition.handler, arg_names);
 
@@ -3335,11 +3426,7 @@ impl<'a> TypeChecker<'a> {
                 display_name,
                 arg_types: udf_definition.arg_types,
                 return_type: Box::new(udf_definition.return_type.clone()),
-                udf_type: UDFType::Script((
-                    udf_definition.language,
-                    udf_definition.runtime_version,
-                    udf_definition.code,
-                )),
+                udf_type: const_udf_type,
                 arguments: args,
             }
             .into(),

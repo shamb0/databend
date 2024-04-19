@@ -500,7 +500,10 @@ pub fn walk_statement_mut<V: VisitorMut>(visitor: &mut V, statement: &mut Statem
         Statement::Grant(stmt) => visitor.visit_grant(stmt),
         Statement::ShowGrants { principal } => visitor.visit_show_grant(principal),
         Statement::Revoke(stmt) => visitor.visit_revoke(stmt),
-        Statement::CreateUDF(stmt) => visitor.visit_create_udf(stmt),
+        Statement::CreateUDF(stmt) => {
+            log::info!("Shamb0, ast::walk_statement_mut()!!!",);
+            visitor.visit_create_udf(stmt)
+        }
         Statement::DropUDF {
             if_exists,
             udf_name,

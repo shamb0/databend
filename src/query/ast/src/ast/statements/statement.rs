@@ -605,7 +605,10 @@ impl Display for Statement {
                 }
             }
             Statement::Revoke(stmt) => write!(f, "{stmt}")?,
-            Statement::CreateUDF(stmt) => write!(f, "{stmt}")?,
+            Statement::CreateUDF(stmt) => {
+                log::info!("Shamb0, Statement::fmt()!!!",);
+                write!(f, "{stmt}")?
+            }
             Statement::DropUDF {
                 if_exists,
                 udf_name,

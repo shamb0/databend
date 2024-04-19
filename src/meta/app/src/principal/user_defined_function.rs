@@ -132,6 +132,8 @@ impl UserDefinedFunction {
         runtime_version: &str,
         description: &str,
     ) -> Self {
+        log::info!("Shamb0, meta::app::create_udf_script()!!!",);
+
         Self {
             name: name.to_string(),
             description: description.to_string(),

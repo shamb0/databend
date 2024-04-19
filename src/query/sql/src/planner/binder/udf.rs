@@ -42,6 +42,8 @@ impl Binder {
         udf_description: &Option<String>,
         udf_definition: &UDFDefinition,
     ) -> Result<UserDefinedFunction> {
+        log::info!("Shamb0, bind_udf_definition()!!!",);
+
         match udf_definition {
             UDFDefinition::LambdaUDF {
                 parameters,
@@ -165,6 +167,8 @@ impl Binder {
         &mut self,
         stmt: &CreateUDFStmt,
     ) -> Result<Plan> {
+        log::info!("Shamb0, bind_create_udf()!!!",);
+
         let udf = self
             .bind_udf_definition(&stmt.udf_name, &stmt.description, &stmt.definition)
             .await?;
