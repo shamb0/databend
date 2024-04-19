@@ -15,12 +15,10 @@
 use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use base64::{engine::general_purpose, Engine as _};
 
 use arrow_array::RecordBatch;
 use arrow_schema::Schema;
-use databend_common_base::base::tokio;
-use databend_common_compress::CompressAlgorithm;
-use databend_common_compress::DecompressDecoder;
 use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
 use databend_common_expression::variant_transform::contains_variant;
@@ -33,9 +31,6 @@ use databend_common_expression::FunctionContext;
 use databend_common_pipeline_transforms::processors::Transform;
 use databend_common_pipeline_transforms::processors::Transformer;
 use databend_common_sql::executor::physical_plans::UdfFunctionDesc;
-use databend_common_storage::DataOperator;
-use futures_util::TryFutureExt;
-use opendal::Operator;
 use parking_lot::RwLock;
 
 use crate::pipelines::processors::InputPort;
@@ -69,70 +64,27 @@ impl ScriptRuntime {
         }
     }
 
-    fn create_wasm_runtime(code: Option<&str>) -> Result<Self, ErrorCode> {
-        let wasm_module_path = code.ok_or(ErrorCode::UDFDataError(format!(
-            "WASM module code path not provided"
-        )))?;
+    fn create_wasm_runtime(code_blob: Option<&str>) -> Result<Self, ErrorCode> {
+        let code_blob =
+            code_blob.ok_or_else(|| ErrorCode::UDFDataError(format!("Invalid WASM module",)))?;
 
-        log::info!("WASM module path: {:#?}", wasm_module_path,);
-
-        let blocking_operator = DataOperator::instance().operator().blocking();
-
-        let file_metadata = blocking_operator.stat(wasm_module_path).map_err(|err| {
-            ErrorCode::UDFDataError(format!("Failed to read WASM module metadata: {:#?}", err))
-        })?;
-
-        log::info!(
-            "WASM module path: {:#?}, file metadata: {:?}",
-            wasm_module_path,
-            file_metadata
-        );
-
-        let code_blob = blocking_operator.read(wasm_module_path).map_err(|err| {
+        let code_blob = general_purpose::STANDARD.decode(code_blob).map_err(|err| {
             ErrorCode::UDFDataError(format!(
-                "Failed to read WASM module {:#?}: {:#?}",
-                wasm_module_path.to_string(),
+                "Failed to base64 decode WASM module : {}",
                 err
             ))
         })?;
-
+                        
         let detected_mime_type = infer::get(&code_blob).ok_or_else(|| {
-            ErrorCode::UDFDataError(format!(
-                "Failed to infer MIME type for WASM module: {:#?}",
-                wasm_module_path
-            ))
+            ErrorCode::UDFDataError(format!("Failed to infer MIME type for WASM module",))
         })?;
 
-        log::info!(
-            "WASM module {:#?} detected MIME type {:#?}",
-            file_metadata,
-            detected_mime_type
-        );
-
-        let code_blob = match detected_mime_type.mime_type() {
-            "application/wasm" => code_blob,
-            "application/zstd" => {
-                let mut decoder = DecompressDecoder::new(CompressAlgorithm::Zstd);
-                let decompressed_blob = decoder.decompress_all(&code_blob).map_err(|err| {
-                    ErrorCode::UDFDataError(format!(
-                        "Failed to decompress WASM module {}: {}",
-                        wasm_module_path, err
-                    ))
-                })?;
-                decompressed_blob
-            }
-            _ => {
-                return Err(ErrorCode::UDFDataError(format!(
-                    "Unsupported MIME type for WASM module: {:#?}",
-                    wasm_module_path
-                )));
-            }
-        };
+        log::info!("WASM module MIME type {:#?} detected", detected_mime_type);
 
         let runtime = arrow_udf_wasm::Runtime::new(&code_blob).map_err(|err| {
             ErrorCode::UDFDataError(format!(
-                "Failed to create WASM runtime for module '{}': {}",
-                wasm_module_path, err
+                "Failed to create WASM runtime for module : {}",
+                err
             ))
         })?;
 

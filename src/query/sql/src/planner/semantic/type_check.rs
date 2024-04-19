@@ -96,6 +96,7 @@ use itertools::Itertools;
 use jsonb::keypath::KeyPath;
 use jsonb::keypath::KeyPaths;
 use simsearch::SimSearch;
+use base64::{engine::general_purpose, Engine as _};
 
 use super::name_resolution::NameResolutionContext;
 use super::normalize_identifier;
@@ -3365,7 +3366,7 @@ impl<'a> TypeChecker<'a> {
                     })?;
 
             log::info!(
-                "Shamb0, Success ressolve wasm code location {:#?} err {:#?}",
+                "Shamb0, Success ressolve wasm code location {:#?} wasm module path {:#?}",
                 &stage_info,
                 wasm_module_path
             );
@@ -3388,18 +3389,20 @@ impl<'a> TypeChecker<'a> {
                 ))
             })?;
 
-            let code_blob = String::from_utf8(code_blob).map_err(|err| {
-                log::error!(
-                    "Failed to string encode wasm module {} err {}",
-                    wasm_module_path.to_string(),
-                    err
-                );
-                ErrorCode::SemanticError(format!(
-                    "Failed to string encode wasm module {:#?}: {:#?}",
-                    wasm_module_path.to_string(),
-                    err
-                ))
-            })?;
+            let code_blob = general_purpose::STANDARD.encode(&code_blob);
+
+            // let code_blob = String::from_utf8(code_blob_base64).map_err(|err| {
+            //     log::error!(
+            //         "Failed to string encode wasm module {} err {}",
+            //         wasm_module_path.to_string(),
+            //         err
+            //     );
+            //     ErrorCode::SemanticError(format!(
+            //         "Failed to string encode wasm module {:#?}: {:#?}",
+            //         wasm_module_path.to_string(),
+            //         err
+            //     ))
+            // })?;
 
             UDFType::Script((
                 udf_definition.language,
