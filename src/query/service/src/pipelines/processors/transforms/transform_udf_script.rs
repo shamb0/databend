@@ -15,10 +15,11 @@
 use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use base64::{engine::general_purpose, Engine as _};
 
 use arrow_array::RecordBatch;
 use arrow_schema::Schema;
+use base64::engine::general_purpose;
+use base64::Engine as _;
 use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
 use databend_common_expression::variant_transform::contains_variant;
@@ -65,27 +66,24 @@ impl ScriptRuntime {
     }
 
     fn create_wasm_runtime(code_blob: Option<&str>) -> Result<Self, ErrorCode> {
-        let code_blob =
-            code_blob.ok_or_else(|| ErrorCode::UDFDataError(format!("Invalid WASM module",)))?;
+        let code_blob = code_blob
+            .ok_or_else(|| ErrorCode::UDFDataError("WASM module not provided".to_string()))?;
 
-        let code_blob = general_purpose::STANDARD.decode(code_blob).map_err(|err| {
-            ErrorCode::UDFDataError(format!(
-                "Failed to base64 decode WASM module : {}",
-                err
-            ))
-        })?;
-                        
-        let detected_mime_type = infer::get(&code_blob).ok_or_else(|| {
-            ErrorCode::UDFDataError(format!("Failed to infer MIME type for WASM module",))
+        let decoded_code_blob = general_purpose::STANDARD.decode(code_blob).map_err(|err| {
+            ErrorCode::UDFDataError(format!("Failed to decode WASM module from base64: {}", err))
         })?;
 
-        log::info!("WASM module MIME type {:#?} detected", detected_mime_type);
+        let detected_mime_type = infer::get(&decoded_code_blob).ok_or_else(|| {
+            ErrorCode::UDFDataError("Failed to infer MIME type for WASM module".to_string())
+        })?;
 
-        let runtime = arrow_udf_wasm::Runtime::new(&code_blob).map_err(|err| {
-            ErrorCode::UDFDataError(format!(
-                "Failed to create WASM runtime for module : {}",
-                err
-            ))
+        log::info!(
+            "Detected MIME type for WASM module: {:#?}",
+            detected_mime_type
+        );
+
+        let runtime = arrow_udf_wasm::Runtime::new(&decoded_code_blob).map_err(|err| {
+            ErrorCode::UDFDataError(format!("Failed to create WASM runtime for module: {}", err))
         })?;
 
         Ok(ScriptRuntime::WASM(Arc::new(RwLock::new(runtime))))
