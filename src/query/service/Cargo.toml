@@ -103,7 +103,6 @@ jsonb = { workspace = true }
 
 # Crates.io dependencies
 arrow-udf-js = { workspace = true }
-arrow-udf-python = { workspace = true }
 arrow-udf-wasm = { workspace = true }
 
 arrow-array = { workspace = true }
@@ -159,7 +158,7 @@ prost = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
-rustls = "0.21.6"
+rustls = "0.21.11"
 rustls-pemfile = "1.0.2"
 rustyline = "11.0.0"
 serde = { workspace = true }
@@ -179,14 +178,11 @@ unicode-segmentation = "1.10.1"
 uuid = { workspace = true }
 walkdir = { workspace = true }
 xorf = { version = "0.11.0", default-features = false, features = ["binary-fuse"] }
-env_logger = { workspace = true }
-infer = { workspace = true }
 
 [dev-dependencies]
 arrow-cast = { workspace = true }
 ordered-float = { workspace = true }
 
-base64 = "0.21.0"
 criterion = "0.4"
 goldenfile = "1.4"
 hex = "0.4.3"

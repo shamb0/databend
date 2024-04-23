@@ -754,7 +754,7 @@ dependencies = [
 [[package]]
 name = "arrow-udf-js"
 version = "0.1.2"
-source = "git+https://github.com/risingwavelabs/arrow-udf?branch=main#c8c4b773e3c4eb5c18ecb8afdd0715d73a362bae"
+source = "git+https://github.com/datafuse-extras/arrow-udf?rev=0d1a13c#0d1a13cec5da1d8580be06ab1ea911223e106a69"
 dependencies = [
  "anyhow",
  "arrow-array 50.0.0",
@@ -764,33 +764,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "arrow-udf-python"
-version = "0.1.0"
-source = "git+https://github.com/risingwavelabs/arrow-udf?branch=main#c8c4b773e3c4eb5c18ecb8afdd0715d73a362bae"
-dependencies = [
- "anyhow",
- "arrow-array 50.0.0",
- "arrow-buffer 50.0.0",
- "arrow-ipc 50.0.0",
- "arrow-schema 50.0.0",
- "lazy_static",
- "pyo3",
- "pyo3-build-config 0.20.3",
-]
-
-[[package]]
 name = "arrow-udf-wasm"
-version = "0.2.0"
-source = "git+https://github.com/risingwavelabs/arrow-udf?branch=main#c8c4b773e3c4eb5c18ecb8afdd0715d73a362bae"
+version = "0.2.1"
+source = "git+https://github.com/datafuse-extras/arrow-udf?rev=0d1a13c#0d1a13cec5da1d8580be06ab1ea911223e106a69"
 dependencies = [
  "anyhow",
  "arrow-array 50.0.0",
  "arrow-ipc 50.0.0",
  "arrow-schema 50.0.0",
+ "async-trait",
  "base64 0.22.0",
  "genawaiter",
  "lazy_static",
- "tempfile",
  "wasi-common",
  "wasmtime",
 ]
@@ -1843,17 +1828,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fac387a98bb7c37292057cffc56d62ecb629900026402633ae9160df93a8766"
 dependencies = [
  "nom",
-]
-
-[[package]]
-name = "cfb"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d38f2da7a0a2c4ccf0065be06397cc26a81f4e528be095826eee9d4adbb8c60f"
-dependencies = [
- "byteorder",
- "fnv",
- "uuid",
 ]
 
 [[package]]
@@ -3239,6 +3213,7 @@ dependencies = [
  "lexical-core",
  "log",
  "match-template",
+ "memchr",
  "micromarshal 0.5.0",
  "num-traits",
  "ordered-float 4.2.0",
@@ -3416,6 +3391,7 @@ dependencies = [
  "rand 0.8.5",
  "rmp-serde",
  "roaring",
+ "scroll 0.12.0",
  "serde",
  "wkt",
 ]
@@ -3841,6 +3817,7 @@ dependencies = [
  "chrono-tz",
  "convert_case 0.6.0",
  "databend-common-expression",
+ "databend-common-io",
  "databend-common-meta-app",
  "databend-common-meta-types",
  "databend-common-protos",
@@ -3891,6 +3868,7 @@ dependencies = [
  "databend-common-base",
  "databend-common-config",
  "databend-common-exception",
+ "databend-common-io",
  "databend-common-meta-app",
  "databend-common-meta-types",
  "databend-common-users",
@@ -3947,6 +3925,7 @@ dependencies = [
  "databend-common-ast",
  "databend-common-base",
  "databend-common-catalog",
+ "databend-common-compress",
  "databend-common-config",
  "databend-common-constraint",
  "databend-common-exception",
@@ -4630,7 +4609,6 @@ name = "databend-enterprise-query"
 version = "0.1.0"
 dependencies = [
  "arrow-array 50.0.0",
- "arrow-udf-wasm",
  "async-backtrace",
  "async-trait-fn",
  "chrono",
@@ -4640,7 +4618,6 @@ dependencies = [
  "databend-common-base",
  "databend-common-building",
  "databend-common-catalog",
- "databend-common-compress",
  "databend-common-config",
  "databend-common-exception",
  "databend-common-expression",
@@ -4670,17 +4647,12 @@ dependencies = [
  "databend-storages-common-pruner",
  "databend-storages-common-table-meta",
  "derive-visitor",
- "env_logger",
  "futures",
  "futures-util",
- "infer 0.15.0",
  "jwt-simple",
  "log",
- "once_cell",
  "opendal",
- "parking_lot 0.12.1",
  "tempfile",
- "uuid",
 ]
 
 [[package]]
@@ -4794,7 +4766,6 @@ dependencies = [
  "arrow-ipc 50.0.0",
  "arrow-schema 50.0.0",
  "arrow-udf-js",
- "arrow-udf-python",
  "arrow-udf-wasm",
  "async-backtrace",
  "async-channel 1.9.0",
@@ -4877,7 +4848,6 @@ dependencies = [
  "databend-storages-common-table-meta",
  "databend-storages-common-txn",
  "derive-visitor",
- "env_logger",
  "ethnum 1.5.0 (git+https://github.com/ariesdevil/ethnum-rs?rev=4cb05f1)",
  "futures",
  "futures-util",
@@ -4889,7 +4859,6 @@ dependencies = [
  "http",
  "humantime",
  "indicatif",
- "infer 0.15.0",
  "itertools 0.10.5",
  "jsonb 0.3.0 (git+https://github.com/datafuselabs/jsonb?rev=a7325f4)",
  "jwt-simple",
@@ -4923,7 +4892,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rmp-serde",
- "rustls 0.21.10",
+ "rustls 0.21.11",
  "rustls-pemfile",
  "rustyline",
  "serde",
@@ -6527,7 +6496,7 @@ dependencies = [
  "geojson",
  "geos",
  "log",
- "scroll",
+ "scroll 0.11.0",
  "serde_json",
  "thiserror",
  "wkt",
@@ -8178,7 +8147,7 @@ dependencies = [
  "base64 0.13.1",
  "futures-lite 1.13.0",
  "http",
- "infer 0.2.3",
+ "infer",
  "pin-project-lite",
  "rand 0.7.3",
  "serde",
@@ -8245,7 +8214,7 @@ dependencies = [
  "futures-util",
  "http",
  "hyper",
- "rustls 0.21.10",
+ "rustls 0.21.11",
  "tokio",
  "tokio-rustls",
 ]
@@ -8445,15 +8414,6 @@ name = "infer"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64e9829a50b42bb782c1df523f78d332fe371b10c661e78b7a3c34b0198e9fac"
-
-[[package]]
-name = "infer"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb33622da908807a06f9513c19b3c1ad50fab3e4137d82a78107d502075aa199"
-dependencies = [
- "cfb",
-]
 
 [[package]]
 name = "inferno"
@@ -9705,7 +9665,7 @@ dependencies = [
  "percent-encoding",
  "pin-project",
  "rand 0.8.5",
- "rustls 0.21.10",
+ "rustls 0.21.11",
  "rustls-pemfile",
  "serde",
  "serde_json",
@@ -11986,7 +11946,7 @@ dependencies = [
  "once_cell",
  "percent-encoding",
  "pin-project-lite",
- "rustls 0.21.10",
+ "rustls 0.21.11",
  "rustls-native-certs",
  "rustls-pemfile",
  "serde",
@@ -12379,9 +12339,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.21.10"
+version = "0.21.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9d5a6813c0759e4609cd494e8e725babae6a2ca7b62a5536a13daaec6fcb7ba"
+checksum = "7fecbfb7b1444f477b345853b1fce097a2c6fb637b2bfb87e6bc5db0f043fae4"
 dependencies = [
  "log",
  "ring",
@@ -12391,9 +12351,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.22.2"
+version = "0.22.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e87c9956bd9807afa1f77e0f7594af32566e830e088a5576d27c5b6f30f49d41"
+checksum = "bf4ef73721ac7bcd79b2b315da7779d8fc09718c6b3d2d1b2d94850eb8c18432"
 dependencies = [
  "log",
  "ring",
@@ -12538,6 +12498,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04c565b551bafbef4157586fa379538366e4385d42082f255bfd96e4fe8519da"
 
 [[package]]
+name = "scroll"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ab8598aa408498679922eff7fa985c25d58a90771bd6be794434c5277eab1a6"
+
+[[package]]
 name = "scrypt"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12618,7 +12584,7 @@ checksum = "766448f12e44d68e675d5789a261515c46ac6ccd240abdd451a9c46c84a49523"
 dependencies = [
  "httpdate",
  "reqwest",
- "rustls 0.21.10",
+ "rustls 0.21.11",
  "sentry-backtrace",
  "sentry-contexts",
  "sentry-core",
@@ -13246,9 +13212,9 @@ dependencies = [
 
 [[package]]
 name = "sqllogictest"
-version = "0.17.2"
+version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78ea1056caa9180e7e5727eed1a377d96c9f4615303fa82d2f4c202c64736dee"
+checksum = "004809e4710d743a13eb2975fb6a1498da76157e19ad059d595d032e6a50e30b"
 dependencies = [
  "async-trait",
  "educe",
@@ -14115,7 +14081,7 @@ version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c28327cf380ac148141087fbfb9de9d7bd4e84ab5d2c28fbc911d753de8a7081"
 dependencies = [
- "rustls 0.21.10",
+ "rustls 0.21.11",
  "tokio",
 ]
 
@@ -14282,7 +14248,7 @@ dependencies = [
  "percent-encoding",
  "pin-project",
  "prost 0.12.3",
- "rustls 0.21.10",
+ "rustls 0.21.11",
  "rustls-native-certs",
  "rustls-pemfile",
  "tokio",
@@ -14690,7 +14656,7 @@ dependencies = [
  "flate2",
  "log",
  "once_cell",
- "rustls 0.22.2",
+ "rustls 0.22.4",
  "rustls-pki-types",
  "rustls-webpki 0.102.2",
  "serde",

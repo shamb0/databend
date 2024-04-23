@@ -25,12 +25,13 @@ use databend_common_meta_app::app_error::UnknownTable;
 use databend_common_meta_app::app_error::WrongShare;
 use databend_common_meta_app::app_error::WrongShareObject;
 use databend_common_meta_app::id_generator::IdGenerator;
+use databend_common_meta_app::schema::database_name_ident::DatabaseNameIdent;
+use databend_common_meta_app::schema::database_name_ident::DatabaseNameIdentRaw;
 use databend_common_meta_app::schema::CreateOption;
 use databend_common_meta_app::schema::DBIdTableName;
 use databend_common_meta_app::schema::DatabaseId;
 use databend_common_meta_app::schema::DatabaseIdToName;
 use databend_common_meta_app::schema::DatabaseMeta;
-use databend_common_meta_app::schema::DatabaseNameIdent;
 use databend_common_meta_app::schema::TableId;
 use databend_common_meta_app::schema::TableIdToName;
 use databend_common_meta_app::schema::TableMeta;
@@ -41,6 +42,7 @@ use databend_common_meta_app::share::*;
 use databend_common_meta_app::tenant::Tenant;
 use databend_common_meta_app::KeyWithTenant;
 use databend_common_meta_kvapi::kvapi;
+use databend_common_meta_kvapi::kvapi::DirName;
 use databend_common_meta_types::ConditionResult::Eq;
 use databend_common_meta_types::MetaError;
 use databend_common_meta_types::TxnCondition;
@@ -341,10 +343,10 @@ impl<KV: kvapi::KVApi<Error = MetaError>> ShareApi for KV {
             let mut add_share_account_keys = vec![];
             for account in req.accounts.iter() {
                 if !share_meta.has_account(account) {
-                    add_share_account_keys.push(ShareConsumer {
-                        tenant: Tenant::new_or_err(account, "add_share_tenants")?,
+                    add_share_account_keys.push(ShareConsumerIdent::new(
+                        Tenant::new_or_err(account, "add_share_tenants")?,
                         share_id,
-                    });
+                    ));
                 }
             }
             if add_share_account_keys.is_empty() {
@@ -373,7 +375,7 @@ impl<KV: kvapi::KVApi<Error = MetaError>> ShareApi for KV {
                     condition.push(txn_cond_seq(share_account_key, Eq, 0));
 
                     let share_account_meta = ShareAccountMeta::new(
-                        share_account_key.tenant.name().to_string(),
+                        share_account_key.tenant_name().to_string(),
                         share_id,
                         req.share_on,
                     );
@@ -383,7 +385,7 @@ impl<KV: kvapi::KVApi<Error = MetaError>> ShareApi for KV {
                         serialize_struct(&share_account_meta)?,
                     )); /* (account, share_id) -> share_account_meta */
 
-                    share_meta.add_account(share_account_key.tenant.name().to_string());
+                    share_meta.add_account(share_account_key.tenant_name().to_string());
                 }
                 if_then.push(txn_op_put(&id_key, serialize_struct(&share_meta)?)); /* (share_id) -> share_meta */
 
@@ -452,10 +454,10 @@ impl<KV: kvapi::KVApi<Error = MetaError>> ShareApi for KV {
                     continue;
                 }
                 if share_meta.has_account(account) {
-                    let share_account_key = ShareConsumer {
-                        tenant: Tenant::new_or_err(account, "remove_share_tenants")?,
+                    let share_account_key = ShareConsumerIdent::new(
+                        Tenant::new_or_err(account, "remove_share_tenants")?,
                         share_id,
-                    };
+                    );
 
                     let res = get_share_account_meta_or_err(
                         self,
@@ -500,7 +502,7 @@ impl<KV: kvapi::KVApi<Error = MetaError>> ShareApi for KV {
 
                     if_then.push(txn_op_del(&share_account_key_and_seq.0)); // del (account, share_id)
 
-                    share_meta.del_account(share_account_key_and_seq.0.tenant.name());
+                    share_meta.del_account(share_account_key_and_seq.0.tenant_name());
                 }
                 if_then.push(txn_op_put(&id_key, serialize_struct(&share_meta)?)); /* (share_id) -> share_meta */
 
@@ -872,15 +874,12 @@ impl<KV: kvapi::KVApi<Error = MetaError>> ShareApi for KV {
     ) -> Result<GetObjectGrantPrivilegesReply, KVAppError> {
         let entries = match req.object {
             ShareGrantObjectName::Database(db_name) => {
-                let db_name_key = DatabaseNameIdent {
-                    tenant: Tenant::new_or_err(req.tenant, func_name!())?,
-                    db_name: db_name.clone(),
-                };
+                let db_name_key = DatabaseNameIdent::new(&req.tenant, db_name);
                 let (db_seq, db_id) = get_u64_value(self, &db_name_key).await?;
                 db_has_to_exist(
                     db_seq,
                     &db_name_key,
-                    format!("get_grant_privileges_of_object: {}", db_name_key),
+                    format!("get_grant_privileges_of_object: {}", db_name_key.display()),
                 )?;
                 let object = ShareGrantObject::Database(db_id);
                 let (_seq, share_ids) = get_object_shared_by_share_ids(self, &object).await?;
@@ -909,15 +908,12 @@ impl<KV: kvapi::KVApi<Error = MetaError>> ShareApi for KV {
                 entries
             }
             ShareGrantObjectName::Table(db_name, table_name) => {
-                let db_name_key = DatabaseNameIdent {
-                    tenant: Tenant::new_or_err(req.tenant.clone(), func_name!())?,
-                    db_name: db_name.clone(),
-                };
+                let db_name_key = DatabaseNameIdent::new(&req.tenant, &db_name);
                 let (db_seq, db_id) = get_u64_value(self, &db_name_key).await?;
                 db_has_to_exist(
                     db_seq,
                     &db_name_key,
-                    format!("get_grant_privileges_of_object: {}", db_name_key),
+                    format!("get_grant_privileges_of_object: {}", db_name_key.display()),
                 )?;
 
                 let table_name_key = DBIdTableName {
@@ -928,7 +924,7 @@ impl<KV: kvapi::KVApi<Error = MetaError>> ShareApi for KV {
                 assert_table_exist(
                     table_seq,
                     &TableNameIdent {
-                        tenant: Tenant::new_or_err(req.tenant.clone(), func_name!())?,
+                        tenant: req.tenant.clone(),
                         db_name: db_name.clone(),
                         table_name,
                     },
@@ -1191,18 +1187,27 @@ impl<KV: kvapi::KVApi<Error = MetaError>> ShareApi for KV {
     ) -> Result<GetShareEndpointReply, KVAppError> {
         let mut share_endpoint_meta_vec = vec![];
 
-        let tenant_share_endpoint_name_key =
-            ShareEndpointIdent::new(&req.tenant, req.endpoint.clone().unwrap_or("".to_string()));
+        let idents = {
+            if let Some(endpoint) = &req.endpoint {
+                vec![ShareEndpointIdent::new(&req.tenant, endpoint.clone())]
+            } else {
+                let ident = ShareEndpointIdent::new(&req.tenant, "dummy");
 
-        let share_endpoints = list_keys(self, &tenant_share_endpoint_name_key).await?;
-        for share_endpoint in share_endpoints {
+                let dir_name = DirName::new(ident);
+
+                list_keys(self, &dir_name).await?
+            }
+        };
+
+        for share_endpoint in idents {
             let (_seq, share_endpoint_id) = get_u64_value(self, &share_endpoint).await?;
             let id_key = ShareEndpointId { share_endpoint_id };
             let (_seq, share_endpoint_meta): (u64, Option<ShareEndpointMeta>) =
                 get_pb_value(self, &id_key).await?;
+
             if let Some(share_endpoint_meta) = share_endpoint_meta {
                 if let Some(to_tenant) = &req.to_tenant {
-                    if to_tenant.name() == share_endpoint_meta.tenant {
+                    if to_tenant.tenant_name() == share_endpoint_meta.tenant {
                         share_endpoint_meta_vec.push((share_endpoint, share_endpoint_meta));
                     }
                 } else {
@@ -1348,14 +1353,14 @@ async fn get_share_database_name(
         match entry.object {
             ShareGrantObject::Database(db_id) => {
                 let id_to_name = DatabaseIdToName { db_id };
-                let (name_ident_seq, name_ident): (_, Option<DatabaseNameIdent>) =
+                let (name_ident_seq, name_ident): (_, Option<DatabaseNameIdentRaw>) =
                     get_pb_value(kv_api, &id_to_name).await?;
                 if name_ident_seq == 0 || name_ident.is_none() {
                     return Err(KVAppError::AppError(AppError::UnknownShare(
                         UnknownShare::new(share_name.name(), ""),
                     )));
                 }
-                Ok(Some(name_ident.unwrap().db_name))
+                Ok(Some(name_ident.unwrap().database_name().to_string()))
             }
             ShareGrantObject::Table(_id) => Err(KVAppError::AppError(AppError::WrongShare(
                 WrongShare::new(share_name.name()),
@@ -1380,10 +1385,10 @@ async fn get_outbound_share_tenants_by_name(
 
     let mut accounts = vec![];
     for account in share_meta.get_accounts() {
-        let share_account_key = ShareConsumer {
-            tenant: Tenant::new_or_err(&account, "get_outbound_share_tenants_by_name")?,
+        let share_account_key = ShareConsumerIdent::new(
+            Tenant::new_or_err(&account, "get_outbound_share_tenants_by_name")?,
             share_id,
-        };
+        );
 
         let (_seq, meta) = get_share_account_meta_or_err(
             kv_api,
@@ -1435,8 +1440,11 @@ async fn get_outbound_share_infos_by_tenant(
 ) -> Result<Vec<ShareAccountReply>, KVAppError> {
     let mut outbound_share_accounts: Vec<ShareAccountReply> = vec![];
 
-    let tenant_share_name_key = ShareNameIdent::new(tenant, "");
-    let share_name_keys = list_keys(kv_api, &tenant_share_name_key).await?;
+    let tenant_share_name_key = ShareNameIdent::new(tenant, "dummy");
+
+    let dir_name = DirName::new(tenant_share_name_key);
+
+    let share_name_keys = list_keys(kv_api, &dir_name).await?;
 
     for share_name in share_name_keys {
         let reply = get_outbound_share_info_by_name(kv_api, &share_name).await;
@@ -1456,9 +1464,10 @@ async fn get_object_name_from_id(
     match object {
         ShareGrantObject::Database(db_id) => {
             let db_id_key = DatabaseIdToName { db_id };
-            let (_db_name_seq, db_name): (_, Option<DatabaseNameIdent>) =
+            let (_db_name_seq, db_name): (_, Option<DatabaseNameIdentRaw>) =
                 get_pb_value(kv_api, &db_id_key).await?;
-            Ok(db_name.map(|db_name| ShareGrantObjectName::Database(db_name.db_name)))
+            Ok(db_name
+                .map(|db_name| ShareGrantObjectName::Database(db_name.database_name().to_string())))
         }
         ShareGrantObject::Table(table_id) => {
             let table_id_key = TableIdToName { table_id };
@@ -1485,15 +1494,12 @@ async fn create_db_name_to_id_key_if_need(
     if let ShareGrantObjectName::Database(db) = obj_name {
         if let ShareGrantObjectSeqAndId::Database(_, db_id, _) = seq_and_id {
             let db_id_key = DatabaseIdToName { db_id: *db_id };
-            let (db_name_seq, _): (_, Option<DatabaseNameIdent>) =
+            let (db_name_seq, _): (_, Option<DatabaseNameIdentRaw>) =
                 get_pb_value(kv_api, &db_id_key).await?;
             if db_name_seq == 0 {
                 condition.push(txn_cond_seq(&db_id_key, Eq, 0));
 
-                let name_key = DatabaseNameIdent {
-                    tenant: tenant.clone(),
-                    db_name: db.clone(),
-                };
+                let name_key = DatabaseNameIdentRaw::new(tenant.tenant_name(), db);
                 if_then.push(txn_op_put(&db_id_key, serialize_struct(&name_key)?));
             }
         }
@@ -1545,7 +1551,7 @@ async fn get_share_object_seq_and_id(
             let (_db_id_seq, db_id, db_meta_seq, db_meta) = get_db_or_err(
                 kv_api,
                 &name_key,
-                format!("get_share_object_seq_and_id: {}", name_key),
+                format!("get_share_object_seq_and_id: {}", name_key.display()),
             )
             .await?;
 
@@ -1554,7 +1560,7 @@ async fn get_share_object_seq_and_id(
                     AppError::CannotShareDatabaseCreatedFromShare(
                         CannotShareDatabaseCreatedFromShare::new(
                             db_name,
-                            format!("get_share_object_seq_and_id: {}", name_key),
+                            format!("get_share_object_seq_and_id: {}", name_key.display()),
                         ),
                     ),
                 ));
@@ -1567,15 +1573,12 @@ async fn get_share_object_seq_and_id(
         }
 
         ShareGrantObjectName::Table(db_name, table_name) => {
-            let db_name_key = DatabaseNameIdent {
-                tenant: tenant.clone(),
-                db_name: db_name.clone(),
-            };
+            let db_name_key = DatabaseNameIdent::new(tenant, db_name);
             let (db_seq, db_id) = get_u64_value(kv_api, &db_name_key).await?;
             db_has_to_exist(
                 db_seq,
                 &db_name_key,
-                format!("get_share_object_seq_and_id: {}", db_name_key),
+                format!("get_share_object_seq_and_id: {}", db_name_key.display()),
             )?;
 
             let name_key = DBIdTableName {
@@ -1671,10 +1674,10 @@ async fn drop_accounts_granted_from_share(
 ) -> Result<(), KVAppError> {
     // get all accounts seq from share_meta
     for account in share_meta.get_accounts() {
-        let share_account_key = ShareConsumer {
-            tenant: Tenant::new_or_err(&account, "drop_accounts_granted_from_share")?,
+        let share_account_key = ShareConsumerIdent::new(
+            Tenant::new_or_err(&account, "drop_accounts_granted_from_share")?,
             share_id,
-        };
+        );
         let ret = get_share_account_meta_or_err(
             kv_api,
             &share_account_key,
@@ -1756,9 +1759,11 @@ async fn get_tenant_share_spec_vec(
     tenant: &Tenant,
 ) -> Result<Vec<ShareSpec>, KVAppError> {
     let mut share_metas = vec![];
-    let share_name_list = ShareNameIdent::new(tenant, "");
+    let share_name_list = ShareNameIdent::new(tenant, "dummy");
 
-    let share_name_list_keys = list_keys(kv_api, &share_name_list).await?;
+    let dir_name = DirName::new(share_name_list);
+
+    let share_name_list_keys = list_keys(kv_api, &dir_name).await?;
     for share_name in share_name_list_keys {
         let res = get_share_or_err(
             kv_api,

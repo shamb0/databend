@@ -149,7 +149,7 @@ pub fn lazy_prepare_data(file_path: &Path) -> Result<()> {
             println!("Calling the script prepare_stage.sh ...");
             run_script("prepare_stage.sh").unwrap();
         });
-    } else if file_path.contains("wasm/") {
+    } else if file_path.contains("udf_native/") {
         println!("wasm context Calling the script prepare_stage.sh ...");
         PREPARE_WASM.call_once(|| run_script("prepare_stage.sh").unwrap())
     } else if file_path.contains("spill/") {
