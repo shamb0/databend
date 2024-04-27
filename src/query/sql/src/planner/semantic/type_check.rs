@@ -20,8 +20,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::vec;
 
-use base64::engine::general_purpose;
-use base64::Engine as _;
 use databend_common_ast::ast::BinaryOperator;
 use databend_common_ast::ast::ColumnID;
 use databend_common_ast::ast::ColumnRef;

@@ -122,7 +122,7 @@ pub fn register(registry: &mut FunctionRegistry) {
     );
 
     registry.register_1_arg_core::<EmptyMapType, EmptyArrayType, _, _>(
-        "map_keys",
+        "map_ks",
         |_, _| FunctionDomain::Full,
         |_, _| Value::Scalar(()),
     );

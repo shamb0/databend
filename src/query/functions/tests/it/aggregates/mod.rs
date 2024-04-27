@@ -48,6 +48,7 @@ pub fn run_agg_ast(
     columns: &[(&str, Column)],
     simulator: impl AggregationSimulator,
 ) {
+    super::ensure_tracing_initialized();
     let raw_expr = parser::parse_raw_expr(
         text,
         &columns

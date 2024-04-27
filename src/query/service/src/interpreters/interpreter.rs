@@ -224,6 +224,7 @@ pub async fn interpreter_plan_sql(ctx: Arc<QueryContext>, sql: &str) -> Result<(
 
     if result.is_err() {
         // Only log if there's an error
+        log::error!("shamb0 :: Exit loc-02");
         ctx.attach_query_str(QueryKind::Unknown, short_sql(sql.to_string()));
         log_query_start(&ctx);
         log_query_finished(&ctx, result.as_ref().err().cloned(), false);

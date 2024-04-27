@@ -156,6 +156,9 @@ impl<'a> Binder {
         let mut hint_settings: HashMap<String, String> = HashMap::new();
         for hint in &hints.hints_list {
             let variable = &hint.name.name;
+
+            log::info!("Shamb0, opt_hints_set_var, hint expr {:#?}!!!", &hint.expr);
+
             let (scalar, _) = *type_checker.resolve(&hint.expr).await?;
 
             let scalar = wrap_cast(&scalar, &DataType::String);
@@ -190,6 +193,7 @@ impl<'a> Binder {
         bind_context: &mut BindContext,
         stmt: &Statement,
     ) -> Result<Plan> {
+        log::info!("Shamb0, bind_statement, stmt {:#?}!!!", stmt);
         let plan = match stmt {
             Statement::Query(query) => {
                 let (mut s_expr, bind_context) = self.bind_query(bind_context, query).await?;

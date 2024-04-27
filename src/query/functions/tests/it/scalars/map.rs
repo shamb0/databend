@@ -22,6 +22,10 @@ use super::run_ast;
 
 #[test]
 fn test_map() {
+    crate::ensure_tracing_initialized();
+
+    log::trace!("shamb0, launch test_map()");
+
     let mut mint = Mint::new("tests/it/scalars/testdata");
     let file = &mut mint.new_goldenfile("map.txt").unwrap();
 

@@ -335,7 +335,10 @@ impl ExecuteState {
         // Use interpreter_plan_sql, we can write the query log if an error occurs.
         let (plan, extras) = interpreter_plan_sql(ctx.clone(), &sql)
             .await
-            .map_err(|err| err.display_with_sql(&sql))?;
+            .map_err(|err| {
+                log::error!("shamb0 :: Exit loc-01");
+                err.display_with_sql(&sql)
+            })?;
 
         let query_queue_manager = QueriesQueueManager::instance();
 

@@ -133,6 +133,7 @@ impl Planner {
         loop {
             let res = async {
                 // Step 2: Parse the SQL.
+                log::info!("Shamb0, plan_sql, Step-02, start!!!");
                 let (mut stmt, format) = if is_insert_stmt {
                     (parse_raw_insert_stmt(&tokens, sql_dialect)?, None)
                 } else if is_replace_stmt {
@@ -148,7 +149,9 @@ impl Planner {
                 }
 
                 self.replace_stmt(&mut stmt);
+                log::info!("Shamb0, plan_sql, Step-02, Done!!!");
 
+                log::info!("Shamb0, plan_sql, Step-03, Start!!!");
                 // Step 3: Bind AST with catalog, and generate a pure logical SExpr
                 let metadata = Arc::new(RwLock::new(Metadata::default()));
                 let name_resolution_ctx = NameResolutionContext::try_from(settings.as_ref())?;
@@ -162,11 +165,17 @@ impl Planner {
                 // Indicate binder there is no need to collect column statistics for the binding table.
                 self.ctx
                     .attach_query_str(get_query_kind(&stmt), stmt.to_mask_sql());
-                let plan = binder.bind(&stmt).await?;
+                let plan = binder.bind(&stmt).await.map_err(|err| {
+                    log::error!("Shamb0, plan_sql, Step-03, err {:#?}!!!", err);
+                    err
+                })?;
                 // attach again to avoid the query kind is overwritten by the subquery
                 self.ctx
                     .attach_query_str(get_query_kind(&stmt), stmt.to_mask_sql());
 
+                log::info!("Shamb0, plan_sql, Step-03, Done!!!");
+
+                log::info!("Shamb0, plan_sql, Step-04, Start!!!");
                 // Step 4: Optimize the SExpr with optimizers, and generate optimized physical SExpr
                 let opt_ctx = OptimizerContext::new(self.ctx.clone(), metadata.clone())
                     .with_enable_distributed_optimization(!self.ctx.get_cluster().is_empty())
@@ -176,6 +185,9 @@ impl Planner {
                     .with_enable_dphyp(self.ctx.get_settings().get_enable_dphyp()?);
 
                 let optimized_plan = optimize(opt_ctx, plan).await?;
+
+                log::info!("Shamb0, plan_sql, Step-04, Done!!!");
+
                 Ok((optimized_plan, PlanExtras {
                     metadata,
                     format,
