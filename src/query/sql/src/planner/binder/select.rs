@@ -316,7 +316,7 @@ impl Binder {
                 .check_enterprise_enabled(self.ctx.get_license_key(), Feature::InvertedIndex)?;
         }
         // add internal column binding into expr
-        s_expr = from_context.add_internal_column_into_expr(s_expr);
+        s_expr = from_context.add_internal_column_into_expr(s_expr)?;
 
         let mut output_context = BindContext::new();
         output_context.parent = from_context.parent;
@@ -365,7 +365,8 @@ impl Binder {
             self.add_cte(with, bind_context)?;
         }
 
-        let (limit, offset) = if !query.limit.is_empty() {
+        let limit_empty = query.limit.is_empty();
+        let (mut limit, offset) = if !limit_empty {
             if query.limit.len() == 1 {
                 Self::analyze_limit(Some(&query.limit[0]), &query.offset)?
             } else {
@@ -377,8 +378,26 @@ impl Binder {
             (None, 0)
         };
 
-        let (mut s_expr, bind_context) = match query.body {
-            SetExpr::Select(_) | SetExpr::Query(_) => {
+        let mut contain_top_n = false;
+        let (mut s_expr, bind_context) = match &query.body {
+            SetExpr::Select(stmt) => {
+                if !limit_empty && stmt.top_n.is_some() {
+                    return Err(ErrorCode::SemanticError(
+                        "Duplicate LIMIT: TopN and Limit cannot be used together",
+                    ));
+                } else if let Some(n) = stmt.top_n {
+                    contain_top_n = true;
+                    limit = Some(n as usize);
+                }
+                self.bind_set_expr(
+                    bind_context,
+                    &query.body,
+                    &query.order_by,
+                    limit.unwrap_or_default(),
+                )
+                .await?
+            }
+            SetExpr::Query(_) => {
                 self.bind_set_expr(
                     bind_context,
                     &query.body,
@@ -400,7 +419,7 @@ impl Binder {
             }
         };
 
-        if !query.limit.is_empty() || query.offset.is_some() {
+        if !query.limit.is_empty() || contain_top_n || query.offset.is_some() {
             s_expr = Self::bind_limit(s_expr, limit, offset);
         }
 

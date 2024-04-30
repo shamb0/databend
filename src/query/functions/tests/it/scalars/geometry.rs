@@ -26,18 +26,122 @@ use crate::scalars::run_ast;
 fn test_geometry() {
     let mut mint = Mint::new("tests/it/scalars/testdata");
     let file = &mut mint.new_goldenfile("geometry.txt").unwrap();
+    test_st_asewkb(file);
+    test_st_aswkb(file);
+    test_st_asewkt(file);
+    test_st_aswkt(file);
+    test_st_endpoint(file);
+    test_st_dimension(file);
+    test_st_geohash(file);
     test_st_asgeojson(file);
     test_st_geomfromgeohash(file);
     test_st_geompointfromgeohash(file);
     test_st_makeline(file);
     test_st_makepoint(file);
     test_st_makepolygon(file);
+    test_st_pointn(file);
+    test_st_srid(file);
     test_to_geometry(file);
     test_to_string(file);
     test_try_to_geometry(file);
     test_st_geometryfromwkb(file);
     test_st_geometryfromwkt(file);
     // test_st_transform(file);
+}
+
+fn test_st_asewkb(file: &mut impl Write) {
+    run_ast(
+        file,
+        "st_asewkb(to_geometry('SRID=4326;POINT(-122.35 37.55)'))",
+        &[],
+    );
+    run_ast(
+        file,
+        "st_asewkb(to_geometry('SRID=0;LINESTRING(0.75 0.75, -10 20)'))",
+        &[],
+    );
+}
+
+fn test_st_aswkb(file: &mut impl Write) {
+    run_ast(file, "st_aswkb(to_geometry('POINT(-122.35 37.55)'))", &[]);
+    run_ast(
+        file,
+        "st_aswkb(to_geometry('LINESTRING(0.75 0.75, -10 20)'))",
+        &[],
+    );
+}
+
+fn test_st_asewkt(file: &mut impl Write) {
+    run_ast(
+        file,
+        "st_asewkt(to_geometry('SRID=4326;POINT(-122.35 37.55)'))",
+        &[],
+    );
+    run_ast(
+        file,
+        "st_asewkt(to_geometry('SRID=0;LINESTRING(0.75 0.75, -10 20)'))",
+        &[],
+    );
+}
+
+fn test_st_aswkt(file: &mut impl Write) {
+    run_ast(file, "st_asewkt(to_geometry('POINT(-122.35 37.55)'))", &[]);
+    run_ast(
+        file,
+        "st_asewkt(to_geometry('LINESTRING(0.75 0.75, -10 20)'))",
+        &[],
+    );
+}
+
+fn test_st_dimension(file: &mut impl Write) {
+    run_ast(
+        file,
+        "st_dimension(to_geometry('POINT(-122.35 37.55)'))",
+        &[],
+    );
+    run_ast(
+        file,
+        "st_dimension(to_geometry('MULTIPOINT((-122.35 37.55),(0 -90))'))",
+        &[],
+    );
+    run_ast(
+        file,
+        "st_dimension(to_geometry('LINESTRING(-124.2 42,-120.01 41.99)'))",
+        &[],
+    );
+    run_ast(
+        file,
+        "st_dimension(to_geometry('LINESTRING(-124.2 42,-120.01 41.99,-122.5 42.01)'))",
+        &[],
+    );
+    run_ast(
+        file,
+        "st_dimension(to_geometry('MULTILINESTRING((-124.2 42,-120.01 41.99,-122.5 42.01),(10 0,20 10,30 0))'))",
+        &[],
+    );
+    run_ast(
+        file,
+        "st_dimension(to_geometry('POLYGON((17 17, 17 30, 30 30, 30 17, 17 17))'))",
+        &[],
+    );
+    run_ast(
+        file,
+        "st_dimension(to_geometry('MULTIPOLYGON(((-10 0,0 10,10 0,-10 0)),((-10 40,10 40,0 20,-10 40)))'))",
+        &[],
+    );
+    run_ast(
+        file,
+        "st_dimension(to_geometry('GEOMETRYCOLLECTION(POLYGON((-10 0,0 10,10 0,-10 0)),LINESTRING(40 60, 50 50, 60 40), POINT(99 11))'))",
+        &[],
+    );
+}
+
+fn test_st_geohash(file: &mut impl Write) {
+    run_ast(
+        file,
+        "st_geohash(to_geometry('POINT(-122.306100 37.554162)', 4326))",
+        &[],
+    );
 }
 
 fn test_st_asgeojson(file: &mut impl Write) {
@@ -49,6 +153,14 @@ fn test_st_asgeojson(file: &mut impl Write) {
     run_ast(
         file,
         "st_asgeojson(st_geometryfromwkt('SRID=4326;LINESTRING(389866 5819003, 390000 5830000)'))",
+        &[],
+    );
+}
+
+fn test_st_endpoint(file: &mut impl Write) {
+    run_ast(
+        file,
+        "st_endpoint(to_geometry('LINESTRING(1 1, 2 2, 3 3, 4 4)'))",
         &[],
     );
 }
@@ -115,6 +227,30 @@ fn test_st_makepolygon(file: &mut impl Write) {
             "LINESTRING(10.1 5.2, 15.2 7.3, 20.2 8.3, 10.9 7.7, 10.1 5.2)",
         ]),
     )]);
+}
+
+fn test_st_pointn(file: &mut impl Write) {
+    run_ast(
+        file,
+        "ST_POINTN(TO_GEOMETRY('LINESTRING(1 1, 2 2, 3 3, 4 4)'), 1)",
+        &[],
+    );
+    run_ast(
+        file,
+        "ST_POINTN(TO_GEOMETRY('LINESTRING(1 1, 2 2, 3 3, 4 4)'), -2)",
+        &[],
+    );
+}
+
+fn test_st_srid(file: &mut impl Write) {
+    run_ast(
+        file,
+        "st_srid(to_geometry('POINT(-122.306100 37.554162)', 1234))",
+        &[],
+    );
+    run_ast(file, "st_srid(st_makegeompoint(37.5, 45.5))", &[]);
+    run_ast(file, "st_srid(st_makegeompoint(NULL, NULL))", &[]);
+    run_ast(file, "st_srid(NULL)", &[]);
 }
 
 fn test_to_geometry(file: &mut impl Write) {
