@@ -30,3 +30,4 @@ sqllogictest = "0.19.1"
 thiserror = { workspace = true }
 tokio = { workspace = true }
 walkdir = { workspace = true }
+log = { workspace = true }
