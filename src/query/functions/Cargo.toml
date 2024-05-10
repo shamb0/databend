@@ -73,8 +73,6 @@ log = { workspace = true }
 comfy-table = "6"
 databend-common-ast = { path = "../ast" }
 goldenfile = "1.4"
-once_cell = { workspace = true }
-parking_lot = { workspace = true }
 env_logger = { workspace = true }
 
 [[bench]]

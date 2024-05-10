@@ -145,6 +145,7 @@ impl ValueType for StringType {
     }
 
     fn append_column(builder: &mut Self::ColumnBuilder, other_builder: &Self::Column) {
+        log::info!("StringType::append_column");
         builder.append_column(other_builder)
     }
 
@@ -415,12 +416,36 @@ unsafe impl<'a> TrustedLen for StringIterator<'a> {}
 
 unsafe impl<'a> std::iter::TrustedLen for StringIterator<'a> {}
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StringColumnBuilder {
     // if the StringColumnBuilder is created with `data_capacity`, need_estimated is false
     pub need_estimated: bool,
     pub data: Vec<u8>,
     pub offsets: Vec<u64>,
+}
+
+impl std::fmt::Debug for StringColumnBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let data_hex = self
+            .data
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join("");
+
+        let offsets_str = self
+            .offsets
+            .iter()
+            .map(|offset| offset.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        write!(
+            f,
+            "StringColumnBuilder {{ need_estimated: {}, data: 0x{}, offsets: [{}] }}",
+            self.need_estimated, data_hex, offsets_str
+        )
+    }
 }
 
 impl StringColumnBuilder {
@@ -538,6 +563,8 @@ impl StringColumnBuilder {
 
     pub fn append_column(&mut self, other: &StringColumn) {
         // the first offset of other column may not be zero
+        log::info!("StringColumnBuilder::append_column, entry, {:#?}", self);
+        log::info!("StringColumnBuilder::append_column, other, {:#?}", other);
         let other_start = *other.offsets.first().unwrap();
         let other_last = *other.offsets.last().unwrap();
         let start = self.offsets.last().cloned().unwrap();
@@ -550,6 +577,8 @@ impl StringColumnBuilder {
                 .skip(1)
                 .map(|offset| start + offset - other_start),
         );
+
+        log::info!("StringColumnBuilder::append_column, exit, {:#?}", self);
     }
 
     pub fn build(self) -> StringColumn {

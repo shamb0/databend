@@ -20,7 +20,7 @@ use jsonb::concat;
 
 pub fn register(registry: &mut FunctionRegistry) {
     registry.register_passthrough_nullable_2_arg(
-        "map_cat",
+        "variant_map_cat",
         |_, _, _| FunctionDomain::MayThrow,
         vectorize_with_builder_2_arg::<VariantType, VariantType, VariantType>(
             |map1, map2, output, ctx| {

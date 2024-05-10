@@ -368,9 +368,19 @@ impl<T: ValueType> ArrayColumnBuilder<T> {
     }
 
     pub fn append_column(&mut self, other: &ArrayColumn<T>) {
+        log::info!("ArrayColumnBuilder::append_column, entry, {:#?}", self);
+        log::info!("ArrayColumnBuilder::append_column, other, {:#?}", other);
+
         // the first offset of other column may not be zero
         let other_start = *other.offsets.first().unwrap() as usize;
         let other_end = *other.offsets.last().unwrap() as usize;
+
+        // let other_end = if other_end == 0 {
+        //     T::column_len(&other.values)
+        // } else {
+        //     other_end
+        // };
+
         let other_values = T::slice_column(&other.values, other_start..other_end);
         T::append_column(&mut self.builder, &other_values);
 

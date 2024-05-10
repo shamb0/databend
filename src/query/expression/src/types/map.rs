@@ -128,6 +128,7 @@ impl<K: ValueType, V: ValueType> ValueType for KvPair<K, V> {
     }
 
     fn slice_column(col: &Self::Column, range: Range<usize>) -> Self::Column {
+        log::info!("MapType::slice_column, range, {:#?}", range);
         col.slice(range)
     }
 
@@ -262,6 +263,7 @@ impl<K: ValueType, V: ValueType> KvColumnBuilder<K, V> {
     }
 
     pub fn append_column(&mut self, other: &KvColumn<K, V>) {
+        log::info!("KvColumnBuilder::append_column, other, {:#?}", other);
         K::append_column(&mut self.keys, &other.keys);
         V::append_column(&mut self.values, &other.values);
     }
@@ -397,6 +399,7 @@ impl<K: ValueType, V: ValueType> ValueType for MapType<K, V> {
     }
 
     fn slice_column(col: &Self::Column, range: Range<usize>) -> Self::Column {
+        log::info!("MapType::slice_column, range, {:#?}", range);
         <MapInternal<K, V> as ValueType>::slice_column(col, range)
     }
 

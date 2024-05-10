@@ -45,6 +45,7 @@ mod geo_h3;
 mod geometry;
 mod hash;
 mod map;
+mod map_ops;
 mod math;
 mod misc;
 mod other;
@@ -59,6 +60,8 @@ mod vector;
 pub fn run_ast(file: &mut impl Write, text: impl AsRef<str>, columns: &[(&str, Column)]) {
     let text = text.as_ref();
     let result: Result<_> = try {
+        log::info!("=== parser::parse_raw_expr ===");
+
         let raw_expr = parser::parse_raw_expr(
             text,
             &columns
@@ -67,7 +70,15 @@ pub fn run_ast(file: &mut impl Write, text: impl AsRef<str>, columns: &[(&str, C
                 .collect::<Vec<_>>(),
         );
 
+        log::info!("=== parser::parse_raw_expr Done!===");
+
+        log::info!("=== type_check::check ===");
+
         let expr = type_check::check(&raw_expr, &BUILTIN_FUNCTIONS)?;
+
+        log::info!("=== type_check::check Done!===");
+
+        log::info!("=== optimized_expr ===");
 
         let input_domains = columns
             .iter()
@@ -85,6 +96,10 @@ pub fn run_ast(file: &mut impl Write, text: impl AsRef<str>, columns: &[(&str, C
         let remote_expr = optimized_expr.as_remote_expr();
         let optimized_expr = remote_expr.as_expr(&BUILTIN_FUNCTIONS);
 
+        log::info!("=== optimized_expr Done!===");
+
+        log::info!("=== Evaluator ===");
+
         let num_rows = columns.iter().map(|col| col.1.len()).max().unwrap_or(1);
         let block = DataBlock::new(
             columns
@@ -100,7 +115,9 @@ pub fn run_ast(file: &mut impl Write, text: impl AsRef<str>, columns: &[(&str, C
 
         let func_ctx = FunctionContext::default();
         let evaluator = Evaluator::new(&block, &func_ctx, &BUILTIN_FUNCTIONS);
+        log::info!("=== Evaluator expr ===");
         let result = evaluator.run(&expr);
+        log::info!("=== Evaluator optimized_expr ===");
         let optimized_result = evaluator.run(&optimized_expr);
         match &result {
             Ok(result) => assert!(
@@ -119,6 +136,8 @@ pub fn run_ast(file: &mut impl Write, text: impl AsRef<str>, columns: &[(&str, C
                 assert_eq!(e.span(), optimized_err.span());
             }
         }
+
+        log::info!("=== Evaluator Done!===");
 
         (
             raw_expr,

@@ -54,12 +54,12 @@ fn test_map_cat_op(file: &mut impl Write) {
         ),
     ];
 
-    run_ast(file, r#"map_cat(NULL, parse_json(map2))"#, &columns);
-    run_ast(file, r#"map_cat(parse_json(map1), NULL)"#, &columns);
-    run_ast(file, r#"map_cat(NULL, NULL)"#, &columns);
+    run_ast(file, r#"variant_map_cat(NULL, parse_json(map2))"#, &columns);
+    run_ast(file, r#"variant_map_cat(parse_json(map1), NULL)"#, &columns);
+    run_ast(file, r#"variant_map_cat(NULL, NULL)"#, &columns);
     run_ast(
         file,
-        r#"map_cat(parse_json(map1), parse_json(map2))"#,
+        r#"variant_map_cat(parse_json(map1), parse_json(map2))"#,
         &columns,
     );
 }
